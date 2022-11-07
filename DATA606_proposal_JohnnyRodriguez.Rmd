@@ -1,0 +1,120 @@
+---
+title: "Data 606 Project"
+author: "Johnny Rodriguez"
+date: "2022-11-6"
+output:
+  html_document:
+    code_folding: show
+    toc: true
+    toc_float:
+      collapsed: true
+    toc_depth: 4
+    number_sections: false
+    highlight: pygments
+    theme: cerulean
+---
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = TRUE ,warning = FALSE, message = FALSE)
+
+```
+
+
+### Data Preparation & Description
+The dataset consists of IT support tickets for a small liberal arts college in NYC.  The IT support tickets encompass technical, computer, software and access issues for students, faculty and staff for the full year 2021 through Nov 4, 2021.  This covers one full academic year Aug 2021 - June 2022 (fall and spring).   Columns that identify the college and its students and employees have been removed.
+
+```{r}
+
+#Libraries
+library(tidyverse)
+library(lubridate)
+library(psych)
+library(ggplot2)
+library(scales)
+
+#Load the data
+it_support_tix <- read.csv("https://raw.githubusercontent.com/johnnydrodriguez/data606project/main/IT_Tickets_2022_2021.csv", na.strings=c("","NA"))
+
+#Converts character date column into dates
+it_support_tix$resolved_at <- mdy_hm(it_support_tix$resolved_at)
+it_support_tix$opened_at <- mdy_hm(it_support_tix$opened_at)
+
+#Calculates the ticket age (date resolved - date opened)
+it_support_tix <- it_support_tix %>% 
+  mutate(age_at_resolution_days =  round(difftime(it_support_tix$resolved_at, it_support_tix$opened_at, units = "days"), digits = 2))
+
+#To create summary statistics, the age_at_resolution is converted to numeric
+it_support_tix$age_at_resolution_days <- as.numeric(it_support_tix$age_at_resolution_days)
+
+glimpse(it_support_tix)
+
+
+```
+
+
+### Research question 
+Does the Contact type (the method the user first initiates the support ticket) predict the age of ticket at resolution?
+
+Why this matters to IT operations managers:  IT support principles typically promote resolution on first contact over the shortest period of time until resolution. IT operations managers will attempt to funnel requests into contact channels that allow IT analysts to resolve issues as quickly as possible.
+
+### Cases 
+
+Each case represents an IT support incident  ie, a user has been affected by a technical issue that needs to be resolved.  There are 14,069 cases and 12 variables.
+
+
+
+### Data collection 
+
+Each incident is either system-generated when the IT support request is made through email or the self service portal.  A support ticket is manually created by an IT analyst when a user makes a support request via phone or walks into the support office.
+
+
+
+### Type of study 
+
+This is an observational study.
+
+
+
+### Data Source 
+
+The data is exported from an IT support database which stores data on each support interaction.
+
+
+
+
+### Dependent Variable
+
+The dependent variable is ticket age (in days) until resolution (date resolved - date created).  This value is numeric.
+
+
+
+### Independent Variable(s)
+
+The independent variable is the contact type - ie, one of 4 methods the user can use to initiate a support requests: email, phone, walk-in, self-service.
+
+
+### Relevant summary statistics 
+The distribution of the age at resolution is heavily skewed to the right.  Analysis that depends on normal distribution approximations may not be possible. 
+
+```{r}
+
+# Summary stats of the age at resolution
+describe(it_support_tix$age_at_resolution_days)
+
+# More Summary stats of the age at resolution
+summary(it_support_tix$age_at_resolution_days)
+
+#Proportional table of suppport tickets by the contact type
+prop.table(table(it_support_tix$contact_type, useNA='ifany')) * 100
+
+
+# Summary stats of age at resolutions grouped by the contact type
+describeBy(it_support_tix$age_at_resolution_days, 
+           group = it_support_tix$contact_type, mat=TRUE)
+
+# Distribution of tickets by age at resolution
+ggplot(it_support_tix, aes(x=age_at_resolution_days)) + geom_histogram(binwidth = 20)
+
+```
+
