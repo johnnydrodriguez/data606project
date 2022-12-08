@@ -1,0 +1,305 @@
+---
+title: "Multiple Regression: "
+subtitle: "Analysis for IT Support Tickets Data Set"
+author: "Johnny Rodriguez"
+date: "2022-12-07"
+output:   
+  ioslides_presentation:
+    widescreen: TRUE
+    smaller: TRUE
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+
+library(tidyverse)
+library(readr)
+library(ggplot2)
+library(lubridate)
+library(knitr)
+library(kableExtra)
+library(gridExtra)
+library(psych)
+
+```
+
+## Abstract
+I will be exploring an IT support data set to determine if the age of an IT support interaction (i.e., the length of time it takes to resolve a ticket), the number of words exchanged between the analyst and the customer (i.e., the length of conversations measured in the number of words), the number of unique updates (i.e., the number of times the support ticket is updated) and the number of reassignments (i.e., the number of times an IT support ticket has been (re)assigned to the various technicians to resolve the support issue) contribute to the positive or negative sentiment associated with IT support interactions.
+
+To perform this analysis, I am using a 2022 IT support tickets data set from a local liberal arts college in NYC containing IT support requests from faculty, staff and students. This dataset was sourced from my job (where I manage this group). As an IT support organization, the ability to detect positive and negative interactions between employees and users is crucial to the operations of the group; **identifying factors that contribute and increase positive sentiment are essential to customer satisfaction and employee retention efforts.**
+
+A multiple regression analysis was performed against these specific variables because ticket age, number of updates, communication length and number of reassignments are controllable elements of a support interaction.  
+
+**If the variables contribute to the sentiment score predication, it should be possible to dial up or dial down these elements to improve support interactions (i.e., increase their sentiment scores).**
+
+## Abstract Summary
+
+* As a manager of the IT support group for a liberal art college supporting faculty, staff and students...
+
+<br/>
+
+* I want to be able to identify variables that affect positive or negative interactions between users and IT support staff...
+
+<br/>
+
+* so that I can affect those interactions in a positive direction.
+
+<br/>
+
+**I used a multiple regression to explore 4 predictor variables for a response variable.**
+
+
+## Where I started...
+
+* The data is an extract from an IT support tickets database containing 6390 support tickets from Jan 1 2022 to Nov 4 2022.
+
+<br/>
+
+* An IT support ticket is generated every time a user and technician/analyst interact to resolve a technical issue
+
+<br/>
+
+* A sentiment analysis using SentimentR package was run against the dialogue text (conversation that occurs between users & IT support staff) 
+
+
+
+## A bit more about the data...
+
+* SentimentR split the dialogue into ~119,000 sentences
+* SentimentR derived the word count and sentiment score
+* Age of ticket was calculated from the start and end dates for each ticket
+* For reasons confidentiality and data sensitivity, the dialogue columns have been removed from the datasets before publishing github
+* The analysis summarizes the total number of words, the total sentiment score, the total age, the number of updates and the number of times a ticket was reassigned
+
+```{r img-with-knitr99, echo=FALSE, fig.align='center', out.width='80%', fig.cap=''}
+
+knitr::include_graphics("https://raw.githubusercontent.com/johnnydrodriguez/607incontext/main/sourcecode2.png")
+```
+
+## Data Snapshot
+
+```{r fig.align='center', out.width='125%', fig.cap=''}
+
+
+#Data preparation
+
+# Read the sentiment values 
+ticketsdata2022sentiment <- read.csv(
+  "https://raw.githubusercontent.com/johnnydrodriguez/607incontext/main/ticketsdata2022_clean.csv", 
+  na.strings=c("","NA"))
+
+df1 <- ticketsdata2022sentiment %>% group_by(number) %>% 
+  summarise(total_words = sum(word_count),
+            total_sentiment = sum(sentiment),
+            .groups = 'drop') %>%
+  as.data.frame()
+
+# Read ticket csv and calculate duration per ticket
+
+#Load the duration and reassigment data
+it_support_tix <- read.csv("https://raw.githubusercontent.com/johnnydrodriguez/data606project/main/IT_Tickets_2022_2021.csv", na.strings=c("","NA"))
+
+#Converts character date column into dates
+it_support_tix$resolved_at <- mdy_hm(it_support_tix$resolved_at)
+it_support_tix$opened_at <- mdy_hm(it_support_tix$opened_at)
+
+#Calculates the ticket age (date resolved - date opened)
+it_support_tix <- it_support_tix %>% 
+  mutate(age_at_resolution_days =  round(difftime(it_support_tix$resolved_at, it_support_tix$opened_at, units = "days"), digits = 2))
+
+#To create summary statistics, the age_at_resolution is converted to numeric
+it_support_tix$age_at_resolution_days <- as.numeric(it_support_tix$age_at_resolution_days)
+
+
+df2 <- left_join(df1, it_support_tix, by = 'number') %>% 
+  select(number, total_words,  sys_mod_count, reassignment_count, age_at_resolution_days, total_sentiment ) %>% 
+  dplyr::rename(update_count = sys_mod_count)
+
+knitr::kable(head(df2, n = 15) ) %>% 
+  kable_styling(bootstrap_options = c("striped", "hover"), font_size = 16, position = "left") %>% 
+  kable_classic(full_width = F, html_font = "Cambria")
+
+```
+
+## A few more summary stats...
+
+```{r echo = FALSE , warning = FALSE, message = FALSE, fig.align='center', out.width='100%', fig.cap=''}
+
+knitr::kable(summary(df2)) %>% 
+  kable_styling(bootstrap_options = "striped", font_size = 12, position = "left") %>%
+ kable_classic(full_width = F, html_font = "Cambria")
+```
+
+
+## Framing the Context
+
+**This is what our data contains:**
+
+* A support ticket (represents the customer and analyst interaction)
+
+<br/>
+
+* of a certain age (the time it takes to resolve the support issue)
+
+<br/>
+
+* at a certain level of engagement (represented by the total number of words in the dialogue)
+
+<br/>
+
+* being addressed by a certain number of technicians throughout its lifespan (represented by the number of reassignments)
+
+<br/>
+
+* achieves a certain level of negative, positive or neutral sentiment (the sentiment score)
+
+## This is what we ask (The Research Question)
+
+Does the ticket age, number of words, frequency of updates, and number of reassignments predict the sentiment score for each incident?
+
+<br/>
+
+**Predictor Variables:**
+
+* ticket age 
+* word count
+* update count
+* reassignment count
+
+<br/>
+
+**Response Variable:**
+
+* sentiment score
+
+
+## The Distribution of IT Support Sentiment
+
+```{r echo = FALSE , warning = FALSE, message = FALSE, fig.align='center', out.width='90%', fig.cap=''}
+
+a <- ggplot(df2, aes(x = total_sentiment)) + 
+  geom_histogram(binwidth = .5) +
+  xlim(-1, 20) +
+   theme_minimal() 
+
+
+b <- df2 %>% ggplot() + geom_density(aes(total_sentiment))+ 
+     xlim(-1, 20)+
+     theme_minimal()
+
+c <- ggplot(df2, aes(sample = total_sentiment)) +
+      stat_qq() +
+     theme_minimal()
+
+grid.arrange(a,b,c, ncol = 3)
+
+
+```
+
+## Multiple Regression Approach
+
+1. Selected 4 predictor variables from the data set
+2. Checked for linear relationships for each predictor variable against the response variable
+3. Checked for collinearity among the predictor variables
+4. Checked for variables with statistical significance with p < .05
+
+## Linear relationship check
+We can consider all of these variables in the multiple regression
+
+```{r echo = FALSE , warning = FALSE, message = FALSE, fig.align='center', out.width='80%', fig.cap=''}
+
+
+a <- ggplot(df2, aes(x=total_sentiment, y=total_words)) + 
+  geom_point()+ 
+  geom_smooth(method=lm, se=TRUE)+
+  ggtitle ("Word Count")
+
+b <- ggplot(df2, aes(x=total_sentiment, y= update_count)) + 
+  geom_point()+ 
+  geom_smooth(method=lm, se=TRUE)+
+  ggtitle ("Update Count")
+
+c<- ggplot(df2, aes(x=total_sentiment, y=reassignment_count)) + 
+  geom_point()+ 
+  geom_smooth(method=lm, se=TRUE)+
+  ggtitle ("Reassignment Count")
+
+d<- ggplot(df2, aes(x=total_sentiment, y=age_at_resolution_days)) + 
+  geom_point()+ 
+  geom_smooth(method=lm, se=TRUE)+
+  ggtitle ("Ticket Age at Resolution")
+
+grid.arrange(a,b,c,d,   ncol = 2)
+
+```
+
+
+## Collinearity check using Variable Inflation Factor (VIF)
+
+
+* VIF calculation checks for collinearity among the predictor variables
+* VIF values greater than 5 indicate collinearity among variables
+* In this case, there is no collinearity among the 4 variables
+
+
+```{r echo = FALSE , warning = FALSE, message = FALSE, fig.align='center', out.width='60%', fig.cap=''}
+
+library(caTools)
+library(car)
+
+m_full <- lm(total_sentiment ~ total_words + update_count + reassignment_count + age_at_resolution_days,  data = df2)
+
+
+#create vector of VIF values
+vif_values  <- vif(m_full)
+
+
+#create horizontal bar chart to display each VIF value
+barplot(vif_values, main = "VIF Values",las=2, horiz = TRUE, names.arg=c("Words", "Updates","Assign","Age"), col = "steelblue",  xlim = c(0, 6))
+abline(v = 5, lwd = 3, lty = 2)
+``` 
+
+
+## Check coefficients, t values and p values
+
+```{r echo = FALSE , warning = FALSE, message = FALSE, fig.align='center', out.width='50%', fig.cap=''}
+
+options(scipen=999, digits = 6)
+
+#Calc coeff and p values for all variables without the redundant variables
+m_full <- lm(total_sentiment ~ total_words + update_count + reassignment_count + age_at_resolution_days,  data = df2)
+
+summary(m_full)
+
+
+```
+## The profile and equation of sentiment for IT support tickets
+
+The profile of a positive IT support tickets
+
+* increasing number of words
+* increasing number of update
+* increasing number of reassignments
+* increasing ticket
+
+<br/>
+
+**Equation for the sentiment score prediction**
+
+
+> y = 0.4468407 + 0.0066172 (total_words) +  0.0412394(update_count) +  0.2779674(reassignment_count) + 0.0041227(age_at_resolution_days)
+
+## Intepretation & Conclusion
+
+* With an **Adjusted R-squared: 0.712**, the multiple regression model is a *decent* predictor of sentiment.
+
+<br/>
+
+* The number of words and number of updates makes sense: typically, users & employees are more "positive"  with more information and more frequent updates regarding technical issues - i.e., likely positive as this indicates active engagement go resolve the technical issue.
+
+<br/> 
+
+* It is unclear why higher reassignment counts and aging tickets contribute to a positive sentiment score.  Typically, there is an inverse relationship for these variables: the more technicians involved handling an issue and the longer it takes to resolve an issue, the more "negative" the experience tends to be.
+
+
+
