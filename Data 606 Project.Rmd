@@ -24,17 +24,17 @@ library(psych)
 ```
 
 ## Abstract
-I will be exploring an IT support data set to determine if the age of an IT support interaction (i.e., the length of time it takes to resolve a ticket), the number of words exchanged between the analyst and the customer (i.e., the length of conversations measured in the number of words), the number of unique updates (i.e., the number of times the support ticket is updated) and the number of reassignments (i.e., the number of times an IT support ticket has been (re)assigned to the various technicians to resolve the support issue) contribute to the positive or negative sentiment associated with IT support interactions.
+I will be exploring an IT support data set to determine if the age of an IT support interaction (i.e., the length of time it takes to resolve a ticket), the number of words exchanged between IT support staff and the customer (i.e., the length of conversations measured in number of words), the number of unique update event (i.e., the number of times the support ticket is updated by the IT support staff or user) and the number of reassignments (i.e., the number of IT support staff involved in resolving the user's technical issue) contribute to the positive or negative sentiment associated with IT support interactions.
 
-To perform this analysis, I am using a 2022 IT support tickets data set from a local liberal arts college in NYC containing IT support requests from faculty, staff and students. This dataset was sourced from my job (where I manage this group). As an IT support organization, the ability to detect positive and negative interactions between employees and users is crucial to the operations of the group; **identifying factors that contribute and increase positive sentiment are essential to customer satisfaction and employee retention efforts.**
+To perform this analysis, I am using a 2022 IT support tickets data set from a liberal arts college in NYC containing IT support requests from faculty, staff and students. This dataset was sourced from my job (where I manage this group). As an IT support organization, the ability to detect positive and negative interactions between employees and users is crucial to the operations of the group; **identifying factors that contribute and increase positive sentiment are essential to customer satisfaction and employee retention efforts.**
 
-A multiple regression analysis was performed against these specific variables because ticket age, number of updates, communication length and number of reassignments are controllable elements of a support interaction.  
+A multiple regression analysis was performed for these specific variables because ticket age, number of updates, communication length and number of reassignments are controllable elements of a support interaction.  
 
-**If the variables contribute to the sentiment score predication, it should be possible to dial up or dial down these elements to improve support interactions (i.e., increase their sentiment scores).**
+**If the variables contribute to the sentiment score predication, it should then be possible to dial up or dial down these elements to improve support interactions (i.e., increase their sentiment scores).**
 
 ## Abstract Summary
 
-* As a manager of the IT support group for a liberal art college supporting faculty, staff and students...
+* As a manager of the IT support group for a liberal arts college supporting faculty, staff and students...
 
 <br/>
 
@@ -51,15 +51,15 @@ A multiple regression analysis was performed against these specific variables be
 
 ## Where I started...
 
-* The data is an extract from an IT support tickets database containing 6390 support tickets from Jan 1 2022 to Nov 4 2022.
+* The data is an extract from an IT support tickets database containing 6390 support tickets from Jan 1 2022 to Nov 4 2022, sourced from my job.
 
 <br/>
 
-* An IT support ticket is generated every time a user and technician/analyst interact to resolve a technical issue
+* An IT support ticket is generated every time a user and IT support staff interact to resolve a technical issue.
 
 <br/>
 
-* A sentiment analysis using SentimentR package was run against the dialogue text (conversation that occurs between users & IT support staff) 
+* A sentiment analysis using SentimentR package was run against the dialogue text (conversation that occurs between users & IT support staff).
 
 
 
@@ -67,9 +67,7 @@ A multiple regression analysis was performed against these specific variables be
 
 * SentimentR split the dialogue into ~119,000 sentences
 * SentimentR derived the word count and sentiment score
-* Age of ticket was calculated from the start and end dates for each ticket
 * For reasons confidentiality and data sensitivity, the dialogue columns have been removed from the datasets before publishing github
-* The analysis summarizes the total number of words, the total sentiment score, the total age, the number of updates and the number of times a ticket was reassigned
 
 ```{r img-with-knitr99, echo=FALSE, fig.align='center', out.width='80%', fig.cap=''}
 
@@ -137,21 +135,19 @@ knitr::kable(summary(df2)) %>%
 
 * A support ticket (represents the customer and analyst interaction)
 
-<br/>
-
 * of a certain age (the time it takes to resolve the support issue)
 
-<br/>
 
 * at a certain level of engagement (represented by the total number of words in the dialogue)
 
-<br/>
+
+* with a certain number of update events (represented by the update count)
+
 
 * being addressed by a certain number of technicians throughout its lifespan (represented by the number of reassignments)
 
-<br/>
 
-* achieves a certain level of negative, positive or neutral sentiment (the sentiment score)
+* achieves a certain level of negative or positive sentiment (the sentiment score)
 
 ## This is what we ask (The Research Question)
 
@@ -194,16 +190,53 @@ c <- ggplot(df2, aes(sample = total_sentiment)) +
 grid.arrange(a,b,c, ncol = 3)
 
 
+#model
+m_full <- lm(total_sentiment ~ total_words + update_count + reassignment_count + age_at_resolution_days,  data = df2)
+
 ```
 
-## Multiple Regression Approach
 
-1. Selected 4 predictor variables from the data set
-2. Checked for linear relationships for each predictor variable against the response variable
-3. Checked for collinearity among the predictor variables
-4. Checked for variables with statistical significance with p < .05
 
-## Linear relationship check
+
+## Multiple Regression - 5 Step Approach
+
+1. Selected 4 predictor variables from the data set and 1 response variable
+2. Checked the Residuals Assumptions: homoscedasticity, normality, probability 
+3. Checked linear relationships for each predictor variable against the response variable
+4. Checked collinearity among the predictor variables
+5. Checked variables for statistical significance: p < .05
+
+
+## The Residuals - Mixed Results
+
+* Homoscedasticity assumption does not appear to be met
+* There is a normal distribution of the residuals
+* Normal probability QQ plot indicates skewness in residuals
+```{r fig.align='center', out.width='75%', fig.cap=''}
+
+#check for linearity for the full model residuals
+e <- ggplot(data = m_full, aes(x = .fitted, y = .resid)) +
+ geom_point() +
+ geom_hline(yintercept = 0, linetype = "dashed") +
+ xlab("Fitted values") +
+ ylab("Residuals")
+
+#check for distribution of residuals
+f <- ggplot(data = m_full, aes(x = .resid)) +
+geom_histogram(binwidth = .1) +
+xlab("Residuals")
+
+#check for normal probability of  residuals
+g <- ggplot(data = m_full, aes(sample = .resid)) +
+stat_qq()
+
+grid.arrange(e, f,g,   ncol = 3)
+
+
+```
+
+
+## Linear Relationship Check
 We can consider all of these variables in the multiple regression
 
 ```{r echo = FALSE , warning = FALSE, message = FALSE, fig.align='center', out.width='80%', fig.cap=''}
@@ -234,7 +267,7 @@ grid.arrange(a,b,c,d,   ncol = 2)
 ```
 
 
-## Collinearity check using Variable Inflation Factor (VIF)
+## Collinearity Check: Variable Inflation Factor (VIF)
 
 
 * VIF calculation checks for collinearity among the predictor variables
@@ -273,33 +306,35 @@ summary(m_full)
 
 
 ```
-## The profile and equation of sentiment for IT support tickets
+## The Profile for Positive IT Support Sentiment
 
-The profile of a positive IT support tickets
-
-* increasing number of words
-* increasing number of update
-* increasing number of reassignments
-* increasing ticket
+* increasing number of words (lengthier dialogue)
+* increasing number of updates (frequent dialogue)
+* increasing number of reassignments (more analysts)
+* increasing ticket age (longer time to resolution)
 
 <br/>
 
 **Equation for the sentiment score prediction**
 
 
-> y = 0.4468407 + 0.0066172 (total_words) +  0.0412394(update_count) +  0.2779674(reassignment_count) + 0.0041227(age_at_resolution_days)
+y =   0.4468407 
+    + 0.0066172 (words) 
+    + 0.0412394(update) 
+    + 0.2779674(reassignment) 
+    + 0.0041227(age)
 
 ## Intepretation & Conclusion
 
-* With an **Adjusted R-squared: 0.712**, the multiple regression model is a *decent* predictor of sentiment.
-
-<br/>
+* With an **Adjusted R-squared: 71.2%**, the multiple regression model is a *decent* predictor of sentiment.
 
 * The number of words and number of updates makes sense: typically, users & employees are more "positive"  with more information and more frequent updates regarding technical issues - i.e., likely positive as this indicates active engagement go resolve the technical issue.
 
-<br/> 
-
 * It is unclear why higher reassignment counts and aging tickets contribute to a positive sentiment score.  Typically, there is an inverse relationship for these variables: the more technicians involved handling an issue and the longer it takes to resolve an issue, the more "negative" the experience tends to be.
 
+**Limitations**
 
+* The residuals assumptions were not completely met.
+* The p values identified positive variables that contradict the real-world experience
+* The predictor and response variables need additional cleanup
 
